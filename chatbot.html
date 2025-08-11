@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DocuSmart Chatbot</title>
+  <style>
+    * { box-sizing: border-box; scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background-color: #f4f6fb;
+      color: #2c3e50;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      background-color: #34495e;
+      color: #ecf0f1;
+      padding: 25px 40px;
+      text-align: center;
+      font-size: 30px;
+      font-weight: bold;
+      position: relative;
+    }
+    .container {
+      flex-grow: 1;
+      padding: 30px;
+    }
+    label {
+      font-weight: bold;
+    }
+    input[type="file"] {
+      padding: 8px;
+      font-size: 15px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: #1abc9c;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #16a085;
+    }
+    #summary {
+      margin-top: 20px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      white-space: pre-wrap;
+    }
+    #chatSection {
+      margin-top: 30px;
+    }
+    #chatbox {
+      border: 1px solid #ccc;
+      padding: 15px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      height: 300px;
+      overflow-y: auto;
+    }
+    .user { color: #2980b9; margin: 8px 0; }
+    .bot { color: #27ae60; margin: 8px 0; white-space: pre-wrap; }
+    input[type="text"] {
+      padding: 10px;
+      font-size: 16px;
+      width: 80%;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    footer {
+      background-color: #2c3e50;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      font-size: 14px;
+      margin-top: auto;
+    }
+
+    /* ✅ Back to Home button styling (added inside header) */
+    .back-btn {
+      position: absolute;
+      top: 25px;
+      right: 40px;
+      background-color: #1abc9c;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 15px;
+      text-decoration: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    DocuSmart Chatbot 🤖
+    <a href="/" class="back-btn">← Back to Home</a>
+  </header>
+
+  <div class="container">
+    <label>Upload Document:</label><br>
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">Upload & Summarize</button>
+
+    <div id="summary"></div>
+
+    <div id="chatSection" style="display:none;">
+      <h3 style="margin-top: 30px;">Ask Questions About Your Document</h3>
+      <div id="chatbox"></div>
+      <input type="text" id="userInput" placeholder="Ask a question..." />
+      <button onclick="sendQuestion()">Send</button>
+    </div>
+  </div>
+
+  <footer>
+    &copy; 2025 DocuSmart. All rights reserved.
+  </footer>
+
+  <script>
+    let sessionId = null;
+
+    function addChatMessage(sender, message) {
+      const chatbox = document.getElementById("chatbox");
+      const div = document.createElement("div");
+      div.className = sender;
+      div.textContent = (sender === "user" ? "You: " : "Bot: ") + message;
+      chatbox.appendChild(div);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    async function uploadFile() {
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files.length) {
+        alert("Please select a file.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      const res = await fetch("/summarize/", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (res.ok) {
+        sessionId = data.session_id;
+        document.getElementById("summary").textContent = "Summary:\n" + data.summary;
+        document.getElementById("chatSection").style.display = "block";
+        addChatMessage("bot", "You can now ask questions about the document.");
+      } else {
+        alert(data.error || "Failed to upload or summarize file.");
+      }
+    }
+
+    async function sendQuestion() {
+      const input = document.getElementById("userInput");
+      const question = input.value.trim();
+      if (!question) return;
+      addChatMessage("user", question);
+      input.value = "";
+
+      const res = await fetch("/chat/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, question }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        let formatted = `🏢 ${data.answer}`;
+        if (data.source) {
+          formatted += `\n🔍 Source: ${data.source}`;
+        }
+        if (data.snippet) {
+          formatted += `\n📄 View Highlighted Text: "${data.snippet}"`;
+        }
+        addChatMessage("bot", formatted);
+      } else {
+        addChatMessage("bot", "Error: " + (data.error || "Unknown error"));
+      }
+    }
+  </script>
+
+</body>
+</html>

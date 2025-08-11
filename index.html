@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DocuSmart - Multimodal Document Abstraction</title>
+  <style>
+    * { box-sizing: border-box; scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      background-color: #f4f6fb;
+      color: #2c3e50;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      background-color: #34495e;
+      color: #ecf0f1;
+      padding: 25px 40px;
+      text-align: center;
+      font-size: 30px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .intro-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 60px 40px;
+      background-color: #ecf9f1;
+      flex-wrap: wrap;
+    }
+    .intro-text { max-width: 50%; }
+    .intro-text h2 { font-size: 38px; margin-bottom: 20px; color: #1abc9c; }
+    .intro-text p { font-size: 18px; margin-bottom: 25px; color: #333; }
+    .intro-text a {
+      display: inline-block;
+      padding: 12px 24px;
+      background-color: #1abc9c;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+    .intro-text a:hover { background-color: #148f77; }
+    .intro-image img { max-width: 400px; border-radius: 8px; }
+    .upload-section {
+      padding: 50px 20px;
+      background-color: #ffffff;
+      text-align: center;
+      flex-grow: 1;
+    }
+    input[type="file"] { margin-top: 15px; padding: 8px; font-size: 15px; }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background-color: #1abc9c;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #16a085; }
+    #result {
+      margin-top: 20px;
+      margin-bottom: 70px;
+      padding: 20px;
+      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+    }
+    .feedback-btn {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: #2c3e50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    .feedback-btn:hover { background-color: #1a252f; }
+    footer {
+      background-color: #2c3e50;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      font-size: 14px;
+      margin-top: auto;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 99;
+      left: 0; top: 0; width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+    }
+    .close {
+      float: right;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span>DocuSmart - Smart Document Scanner & Summarizer</span>
+    <div>
+      <a href="/metrics" style="color: #ecf0f1; font-size: 16px; text-decoration: none; background-color: #1abc9c; padding: 8px 16px; border-radius: 5px; margin-right: 10px;">📊 View Metrics</a>
+      <a href="/static/chatbot.html" style="color: #ecf0f1; font-size: 16px; text-decoration: none; background-color: #1abc9c; padding: 8px 16px; border-radius: 5px;">🤖 Try Chatbot</a>
+    </div>
+  </header>
+
+  <section class="intro-section">
+    <div class="intro-text">
+      <h2>Tired of scanning documents manually?</h2>
+      <p>Say goodbye to tedious work. Upload your file and get a summarized version in seconds.</p>
+      <a href="#upload-section">Click Here to Start</a>
+    </div>
+    <div class="intro-image">
+      <img src="/static/hack.jpeg" alt="Document Scan">
+    </div>
+  </section>
+
+  <section class="upload-section" id="upload-section">
+    <h1>Multimodal Document Abstraction</h1>
+    <input type="file" id="fileInput" accept="*/*" />
+    <br />
+    <button onclick="generateSummary()">Generate Summary</button>
+    <div id="result"></div>
+  </section>
+
+  <!-- Feedback Modal -->
+  <div id="feedbackModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h3>Submit Feedback</h3>
+      <label>Your Name (optional):</label><br>
+      <input type="text" id="validatorName" placeholder="Your name" style="width:100%; padding:8px;"><br><br>
+      <label>Original Summary:</label>
+      <textarea id="originalSummary" readonly style="width:100%; height:80px;"></textarea><br><br>
+      <label>What was wrong with it?</label>
+      <textarea id="correctionReason" style="width:100%; height:60px;"></textarea><br><br>
+      <label>Corrected Summary:</label>
+      <textarea id="correctedSummary" style="width:100%; height:80px;"></textarea><br><br>
+      <button onclick="submitFeedback()">Submit Correction</button>
+    </div>
+  </div>
+
+  <footer>
+    &copy; 2025 DocuSmart. All rights reserved.
+  </footer>
+
+  <!-- JS Scripts -->
+  <script>
+    let selectedFile;
+    let currentSummary = "";
+
+    function closeModal() {
+      document.getElementById("feedbackModal").style.display = "none";
+    }
+
+    function openFeedback() {
+      document.getElementById("originalSummary").value = currentSummary;
+      document.getElementById("feedbackModal").style.display = "block";
+    }
+
+    async function generateSummary() {
+  const fileInput = document.getElementById("fileInput");
+  selectedFile = fileInput.files[0];
+  const resultDiv = document.getElementById("result");
+
+  if (!selectedFile) {
+    alert("Please select a file.");
+    return;
+  }
+
+  resultDiv.innerHTML = `<p><em>Generating summary, please wait...</em></p>`;
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
+
+  try {
+    const res = await fetch("/summarize/", { method: "POST", body: formData });
+
+    // Read response as text first
+    const text = await res.text();
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      resultDiv.innerHTML = `<p style="color:red;">Error: Server returned invalid JSON.</p>`;
+      console.error("Invalid JSON response:", text);
+      return;
+    }
+
+    if (res.status !== 200 || data.error) {
+      resultDiv.innerHTML = `<p style="color:red;">Error: ${data.error || 'Unknown error'}</p>`;
+      return;
+    }
+
+    currentSummary = data.summary;
+
+    resultDiv.innerHTML = `
+      <h3>Summary of ${data.filename}</h3>
+      <p><strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%</p>
+      <textarea id="currentSummary" rows="7" style="width:100%;">${data.summary}</textarea>
+      <br /><br />
+      <button class="feedback-btn" onclick="openFeedback()">Give Feedback</button>
+      <button class="feedback-btn" onclick="downloadPDF()">Download Summary</button>
+    `;
+  } catch (err) {
+    resultDiv.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+  }
+}
+
+
+    async function submitFeedback() {
+      const payload = {
+        filename: selectedFile ? selectedFile.name : "unknown",
+        original_summary: document.getElementById("originalSummary").value,
+        corrected_summary: document.getElementById("correctedSummary").value,
+        correction_reason: document.getElementById("correctionReason").value,
+        validator: document.getElementById("validatorName").value || "Anonymous",
+        timestamp: new Date().toISOString(),
+        version: 1
+      };
+
+      const res = await fetch("/feedback/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      closeModal();
+      alert(data.message || data.error);
+    }
+
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const summary = document.getElementById("currentSummary").value;
+      const lines = doc.splitTextToSize(summary, 180);
+      doc.text("Summary", 10, 10);
+      doc.text(lines, 10, 20);
+      doc.save("summary.pdf");
+    }
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</body>
+</html>
